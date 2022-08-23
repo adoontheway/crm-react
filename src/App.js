@@ -1,24 +1,41 @@
-import logo from './logo.svg';
-import './App.css';
+import {  Routes, Route } from 'react-router-dom';
+import { AuthRoute } from './components/authroute';
+import { unstable_HistoryRouter as HistoryRouter } from 'react-router-dom';
+import { history } from './utils';
+import Login from './pages/login/login';
+import MainLayout from './pages/layout/layout';
+import Home from './pages/home/home';
+import Article from './pages/article/article';
+import Publish from './pages/publish/publish';
+import './App.scss';
+
 
 function App() {
   return (
+    <HistoryRouter history={history}>
     <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
+      <Routes>
+        <Route path='/login' element={<Login/>}/>
+        
+        <Route 
+          path='/' 
+          element={
+            <AuthRoute>
+              <MainLayout/>
+            </AuthRoute>}
         >
-          Learn React
-        </a>
-      </header>
+
+          <Route index element={<Home />}/>
+          <Route path='article' element={<Article />} />
+          <Route path='publish' element={<Publish />} />
+        </Route>
+      
+      
+      </Routes>
     </div>
+    
+    </HistoryRouter>
+    
   );
 }
 
