@@ -1,22 +1,59 @@
 import { useStore } from "../../store"
 import { PlusOutlined } from "@ant-design/icons"
-import { Breadcrumb, Button, Card, Form, Input, Radio, Select, Space, Upload } from "antd"
+import { Breadcrumb, Button, Card, Form, Input, message, Radio, Select, Space, Upload } from "antd"
 import ReactQuill from "react-quill"
-import "react-quill/dist/quill.snow.css"
-import { Link } from "react-router-dom"
+
+import { Link, useNavigate, useSearchParams } from "react-router-dom"
+
+
+import { observer } from "mobx-react-lite"
+import { useEffect, useRef, useState } from "react"
+import { http } from "../../utils"
 
 import './publish.scss'
-import { observer } from "mobx-react-lite"
-import { useState } from "react"
+import "react-quill/dist/quill.snow.css"
 
 const {Option} = Select;
 
 const Publish = ()=>{
+    
+    const [params] = useSearchParams();
+    const article_id = params.get('id');
+    const formRef = useRef(null)
+    useEffect(()=>{
+        const loadDetail = async ()=>{
+            let res = await http.get(`/mp/articles/${article_id}`)
+            const {cover,...formValue} = res.data
+            formRef.current.setFieldsValue({
+                ...formValue,
+                type: cover.type
+            })
+            setImgCount(res.data.cover.type)
+            fileListRef.current = res.data.cover.images.map((el)=>{return {url:el}})
+            setFileList(fileListRef.current)
+        }
+        if(article_id)
+            loadDetail()
+    },[article_id, formRef])
+
     const [imgCount, setImgCount] = useState(1)
     const onRadioChange = (e)=>{
-        setImgCount(e.target.value)
+        let count = e.target.value
+        setImgCount(count)
+        // 从仓库取图片
+        if(count === 1){
+            if(fileListRef.current.length > 0){
+                setFileList([fileListRef.current[0]])
+            }
+        }else if(count === 3){
+            if(fileListRef.current.length !== 0){
+                setFileList(fileListRef.current)
+            }
+        }
+        
     }
-
+    // 不止可以用于引用页面元素，还可以作为暂存仓库
+    const fileListRef = useRef([]);
     const [fileList, setFileList] = useState([])
     const onUploadChange = (result) => {
         const _fileList = result.fileList.map(file => {
@@ -27,8 +64,29 @@ const Publish = ()=>{
             }
             return file
         })
+        fileListRef.current = _fileList
         setFileList(_fileList)
     }
+    const navigate = useNavigate()
+    // submit
+    const onFinished = async (values)=>{
+        console.log(values)
+        const p = {
+            ...values,
+            cover: {
+                type:values.type,
+                images:(fileList.map((img)=>img.url))
+            }
+        }
+        if(article_id){
+            await http.put(`/mp/articles/${article_id}?draft=false`,p)
+        }else{
+            await http.post('/mp/articles?draft=false',p)
+        }
+        navigate('/article')
+        message.success('发布成功')
+    }
+    // read channel list from channelStore
     const {channelStore} = useStore();
     return (
         <div className="publish">
@@ -39,7 +97,7 @@ const Publish = ()=>{
                             <Link to='/home'>首页</Link>
                         </Breadcrumb.Item>
                         <Breadcrumb.Item>
-                            发布文章
+                            {article_id ? '编辑':'发布'}文章
                         </Breadcrumb.Item>
                     </Breadcrumb>
                 }
@@ -48,6 +106,8 @@ const Publish = ()=>{
                     labelCol={{span:4}}
                     wrapperCol={{span:16}}
                     initialValues={{type:1}}
+                    onFinish={onFinished}
+                    ref={formRef}
                 >
                     <Form.Item
                         label='标题'
@@ -101,6 +161,7 @@ const Publish = ()=>{
                             fileList={fileList}
                             onChange={onUploadChange}
                             maxCount={imgCount}
+                            multiple={imgCount > 1}
                         >
                             <div style={{marginTop:8}}>
                                 <PlusOutlined /> 
@@ -128,7 +189,7 @@ const Publish = ()=>{
                     <Form.Item wrapperCol={{offset:4}}>
                         <Space>
                             <Button size="large" type="primary" htmlType="submit">
-                                发布文章
+                            {article_id ? '编辑':'发布'}文章
                             </Button>
                         </Space>
                     </Form.Item>
